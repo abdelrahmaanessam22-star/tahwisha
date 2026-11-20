@@ -409,6 +409,7 @@ function breakdown(m,extra=[]){const b={income:0,fixed:0,household:0,general:0,i
   f.dated.forEach(d=>{if(d.t<=from||d.t>me)return;
     if(d.c==='in'){b.income+=d.a;ins[d.n]=(ins[d.n]||0)+d.a}
     else if(d.c==='fixed'){b.fixed-=d.a;if(!items.includes(d.n))items.push(d.n)}
+    else if(d.c==='home')b.household-=d.a;
     else b.general-=d.a});
   f.spread.forEach(sp=>{if(!sp.days.length)return;let n=0;sp.days.forEach(t=>{if(t>from&&t<=me)n++});const v=-sp.a*n/sp.days.length;
     if(sp.c==='home')b.household+=v;else b.general+=v});
@@ -425,10 +426,11 @@ function flows(home,extra){const s=D.settings,f={dated:[],spread:[]},T=now(),cur
     planned.forEach(p=>{if(occurs(p,m)&&!linked.has(p.id)&&!skipped.has(p.id)){let t=MK.date(m,p.day);if(extraIds.has(p.id)&&t<=soon)t=soon;f.dated.push({t,a:-p.amount,c:'fixed',n:p.name})}});
     let unl=0;(sh?sh.lines:[]).forEach(l=>{const p=l.plannedID&&planned.find(x=>x.id===l.plannedID);if(p)f.dated.push({t:MK.date(m,p.day),a:-l.amount,c:'fixed',n:p.name});else unl+=l.amount});
     const hh=homeFor(m,home)+unl;
-    if(hh>0)f.spread.push({a:-hh,days:daysOf(m,null),c:'home'});
+    if(hh>0)f.dated.push({t:MK.date(m,1),a:-hh,c:'home',n:'مصاريف البيت'});
     const gl=generalFor(m);
-    if(gl>0){if(MK.eq(m,cur)){const rem=Math.max(0,gl-spent(m));if(rem>0)f.spread.push({a:-rem,days:daysOf(m,T),c:'general'})}
-      else if(MK.cmp(m,cur)>0)f.spread.push({a:-gl,days:daysOf(m,null),c:'general'})}
+    // الحد العام مش بيتخصم من رصيدك؛ اللي بتسجّله بس هو اللي بيتخصم. الباقي من الحد بيتحسب في التوقع آخر الشهر
+    if(gl>0){if(MK.eq(m,cur)){const rem=Math.max(0,gl-spent(m));if(rem>0)f.dated.push({t:MK.end(m),a:-rem,c:'general',n:'باقي الحد العام'})}
+      else if(MK.cmp(m,cur)>0)f.dated.push({t:MK.end(m),a:-gl,c:'general',n:'المصاريف العامة'})}
   }
   D.spends.forEach(sp=>f.dated.push({t:sp.date,a:-sp.amount,c:'general',n:sp.note}));return f}
 function net(f,a,b){if(b<=a)return 0;let t=0;f.dated.forEach(d=>{if(d.t>a&&d.t<=b)t+=d.a});
@@ -552,6 +554,7 @@ const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 function dayEvents(d){const m=MK.of(d),day=d.getDate(),s=D.settings,out=[],sh=sheet(m),sk=new Set(sh.skipped);
   const dim=MK.days(m),hit=x=>Math.min(Math.max(x,1),dim)===day;
   if(s.salary>0&&hit(s.salaryDay))out.push({k:'in',n:'المرتب',a:s.salary});
+  if(day===1){const hh=homeFor(m,homeMid())+sh.lines.filter(l=>!l.plannedID).reduce((a,l)=>a+l.amount,0);if(hh>0)out.push({k:'out',n:'مصاريف البيت',a:hh})}
   D.incomes.forEach(i=>{if(MK.eq(i.month,m)&&hit(i.day))out.push({k:'in',n:i.name,a:i.amount})});
   D.planned.forEach(p=>{if(occurs(p,m)&&!sk.has(p.id)&&hit(p.day)){const l=sh.lines.find(x=>x.plannedID===p.id);out.push({k:'out',n:p.name,a:l?l.amount:p.amount})}});
   D.spends.forEach(x=>{const t=new Date(x.date);if(dayKey(t)===dayKey(d))out.push({k:'spend',n:x.note||'مصروف',a:x.amount})});
