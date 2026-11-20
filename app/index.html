@@ -373,9 +373,17 @@ function norm(){const n=v=>{const x=+v;return isFinite(x)?x:0};const cur=MK.of(n
   D.sheets=(D.sheets||[]).filter(sh=>sh&&normMonth(sh.month)).map(sh=>({...sh,month:normMonth(sh.month),lines:(sh.lines||[]).map(l=>({...l,amount:n(l.amount)})),skipped:sh.skipped||[]}));
   D.spends=(D.spends||[]).map(x=>({...x,amount:n(x.amount),date:n(x.date)}));
   const st=D.settings;['goalEGP','rate','salary','salaryDay','homeMin','homeMax','generalLimit','reminderDay'].forEach(k=>st[k]=n(st[k]));
-  st.deadline=normMonth(st.deadline)||{y:2027,m:12}}
+  st.deadline=normMonth(st.deadline)||{y:2027,m:12};
+  // بداية الاستخدام الفعلي: اللي قبلها مش داخل في الحسبة خالص
+  st.startMonth=normMonth(st.startMonth)||{y:2026,m:12}}
 const now=()=>{if(U.simDate){const[y,m,d]=U.simDate.split('-').map(Number);return new Date(y,m-1,d,13).getTime()}return Date.now()};
-const curM=()=>MK.of(new Date(now()));
+const realM=()=>MK.of(new Date(now()));
+const START=()=>D.settings.startMonth||{y:2026,m:12};
+const startT=()=>{const k=START();return new Date(k.y,k.m-1,1).getTime()-1};
+// الرصيد بيتحسب من يوم ما سجّلته أو من بداية الاستخدام، أيهم أبعد
+const anchorT=()=>Math.max(D.anchor.date,startT());
+// قبل بداية الاستخدام، الشهر الحالي في الأبلكيشن هو شهر البداية
+const curM=()=>{const m=realM(),k=START();return MK.cmp(m,k)<0?k:m};
 
 /* ============ engine (نفس منطق الأبلكيشن) ============ */
 function occurs(p,m){const k=MK.until(p.start,m);if(k<0)return false;
@@ -401,7 +409,7 @@ const goalAED=()=>D.settings.rate>0?D.settings.goalEGP/D.settings.rate:0;
    فلو رصيدك اتسجّل في نص الشهر، الشهر ده بيتحسب من يومها بس */
 function breakdown(m,extra=[]){const b={income:0,fixed:0,household:0,general:0,items:[],ins:[],partialFrom:null};
   b.home=homeFor(m);b.generalBase=generalFor(m);
-  const ms=new Date(m.y,m.m-1,1).getTime()-1,me=MK.end(m),A0=D.anchor.date;
+  const ms=new Date(m.y,m.m-1,1).getTime()-1,me=MK.end(m),A0=anchorT();
   if(A0>ms&&A0<me)b.partialFrom=A0;
   const from=Math.max(ms,A0);
   if(from>=me){b.savings=0;return b}
@@ -419,7 +427,7 @@ function breakdown(m,extra=[]){const b={income:0,fixed:0,household:0,general:0,i
 function daysOf(m,after){const out=[];for(let d=1;d<=MK.days(m);d++){const t=MK.date(m,d);if(after!=null&&t<=after)continue;out.push(t)}return out}
 function flows(home,extra){const s=D.settings,f={dated:[],spread:[]},T=now(),cur=curM();
   const planned=D.planned.concat(extra),extraIds=new Set(extra.map(p=>p.id)),soon=T+60000;
-  for(let m=MK.of(new Date(D.anchor.date));MK.cmp(m,s.deadline)<=0;m=MK.add(m,1)){
+  for(let m=MK.of(new Date(anchorT()+1));MK.cmp(m,s.deadline)<=0;m=MK.add(m,1)){
     if(s.salary>0)f.dated.push({t:MK.date(m,s.salaryDay),a:s.salary,c:'in',n:'المرتب'});
     D.incomes.forEach(i=>{if(MK.eq(i.month,m))f.dated.push({t:MK.date(m,i.day),a:i.amount,c:'in',n:i.name})});
     const sh=sheetOf(m),linked=new Set(sh?sh.lines.filter(l=>l.plannedID).map(l=>l.plannedID):[]),skipped=new Set(sh?sh.skipped:[]);
@@ -435,9 +443,9 @@ function flows(home,extra){const s=D.settings,f={dated:[],spread:[]},T=now(),cur
   D.spends.forEach(sp=>f.dated.push({t:sp.date,a:-sp.amount,c:'general',n:sp.note}));return f}
 function net(f,a,b){if(b<=a)return 0;let t=0;f.dated.forEach(d=>{if(d.t>a&&d.t<=b)t+=d.a});
   f.spread.forEach(s=>{if(!s.days.length)return;let n=0;s.days.forEach(d=>{if(d>a&&d<=b)n++});t+=s.a*n/s.days.length});return t}
-function run(home=homeMid(),extra=[]){const f=flows(home,extra),start=D.anchor.date,c0=Math.max(now(),start);
+function run(home=homeMid(),extra=[]){const f=flows(home,extra),start=anchorT(),c0=Math.max(now(),start);
   const nowBal=D.anchor.balance+net(f,start,c0);let bal=nowBal,cur=c0;const pts=[];
-  for(let m=MK.of(new Date(c0));MK.cmp(m,D.settings.deadline)<=0;m=MK.add(m,1)){const e=MK.end(m);if(e>cur){bal+=net(f,cur,e);cur=e}pts.push({m,bal})}
+  for(let m=MK.of(new Date(c0+1));MK.cmp(m,D.settings.deadline)<=0;m=MK.add(m,1)){const e=MK.end(m);if(e>cur){bal+=net(f,cur,e);cur=e}pts.push({m,bal})}
   return{nowBal,pts,end:pts.length?pts[pts.length-1].bal:nowBal,min:pts.reduce((a,p)=>!a||p.bal<a.bal?p:a,null)}}
 function summary(){const r=run(),g=goalAED(),gap=g-r.end,left=Math.max(r.pts.length,1);
   return{r,goal:g,gap,ok:gap<=0,need:gap>0?gap/left:0,progress:g>0?Math.min(Math.max(r.end/g,0),1):0}}
@@ -466,7 +474,7 @@ function due(m){const sh=sheet(m),linked=new Set(sh.lines.filter(l=>l.plannedID)
   return D.planned.filter(p=>occurs(p,m)).map(p=>({p,state:linked.has(p.id)?'linked':sk.has(p.id)?'skipped':'pending'}))}
 function match(name,m){if(String(name).trim().length<2)return null;let best=null,bs=0;
   due(m).filter(d=>d.state==='pending').forEach(d=>{const s=score(name,d.p.name);if(s>bs){bs=s;best=d.p}});return best}
-function monthNeedingSheet(){const day=new Date(now()).getDate(),next=MK.add(curM(),1);
+function monthNeedingSheet(){const day=new Date(now()).getDate(),next=MK.add(realM(),1);
   if(day>=Math.min(D.settings.reminderDay,28)&&!sheet(next).confirmed&&MK.cmp(next,D.settings.deadline)<=0)return next;
   if(!sheet(curM()).confirmed)return curM();return null}
 
@@ -539,7 +547,7 @@ function render(){ANIM.sheet=!!U.sheet&&U.sheet!==lastSheet;lastSheet=U.sheet;AN
   const cal=document.getElementById('cal');if(cal){const on=cal.querySelector('.dpill.on');if(on&&!U.calScrolled){on.scrollIntoView({inline:'center',block:'nearest'});U.calScrolled=true}}}
 function refreshLive(){document.querySelectorAll('[data-live]').forEach(el=>{const f=LIVE[el.dataset.live];if(f){el.innerHTML=f();arabize(el)}})}
 function checkReminder(){if(!D.onboarded||(D.settings.faceID&&!U.unlocked))return;
-  const day=new Date(now()).getDate(),next=MK.add(curM(),1),key='r'+MK.id(next);
+  const day=new Date(now()).getDate(),next=MK.add(realM(),1),key='r'+MK.id(next);
   if(day>=D.settings.reminderDay&&!sheet(next).confirmed&&!D.notified[key]){D.notified[key]=1;save();
     setTimeout(()=>notify('جهّز مصاريف الشهر الجاي',`خد دقيقتين واملا مصاريف ${MK.name(next)}، واتأكد إن رصيدك مظبوط.`),400)}}
 
@@ -553,6 +561,7 @@ const DAYS_AR=['أحد','اتنين','تلات','أربع','خميس','جمعة'
 const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 function dayEvents(d){const m=MK.of(d),day=d.getDate(),s=D.settings,out=[],sh=sheet(m),sk=new Set(sh.skipped);
   const dim=MK.days(m),hit=x=>Math.min(Math.max(x,1),dim)===day;
+  if(d.getTime()<=startT()){if(hit(s.reminderDay))out.push({k:'remind',n:'جهّز مصاريف '+MK.name(MK.add(m,1))});return out}
   if(s.salary>0&&hit(s.salaryDay))out.push({k:'in',n:'المرتب',a:s.salary});
   if(day===1){const hh=homeFor(m,homeMid())+sh.lines.filter(l=>!l.plannedID).reduce((a,l)=>a+l.amount,0);if(hh>0)out.push({k:'out',n:'مصاريف البيت',a:hh})}
   D.incomes.forEach(i=>{if(MK.eq(i.month,m)&&hit(i.day))out.push({k:'in',n:i.name,a:i.amount})});
@@ -901,7 +910,7 @@ const A={
   setv(k,v){D.settings[k]=v;save();render()},
   step(obj,k,d,min,max){const o=obj==='settings'?D.settings:U.draft;o[k]=Math.min(max,Math.max(min,o[k]+d));if(obj==='settings')save();render()},
   open(t){U.sheet=t;
-    if(t==='spend')U.draft={amount:0,note:'',date:now()};
+    if(t==='spend')U.draft={amount:0,note:'',date:now()>startT()?now():startT()+12*3600e3+1};
     if(t==='correct')U.draft={amount:null};
     if(t==='buy')U.draft={name:'',price:0,fee:0,count:4,month:curM(),picked:null};
     KP.id={spend:'spendAmt',correct:'correctAmt',buy:'price'}[t]||null;KP.str='';render()},
