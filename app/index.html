@@ -353,12 +353,15 @@ const COIN='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAA
 const mark=(s=30)=>`<span class="mark" style="width:${s}px;height:${s}px"><img src="${COIN}" alt="" style="width:74%;height:74%;object-fit:contain"></span>`;
 
 /* ============ state ============ */
-const IS_APP=/github\.io$/.test(location.hostname);
+const IS_APP=/github\.io$|pages\.dev$/.test(location.hostname);
+const NEW_URL='https://tahwisha.pages.dev/';
+const IS_OLD=/github\.io$/.test(location.hostname);
 const KEY=IS_APP?'tahwisha.v1':'tahwisha.proto.v1';
 const defaults=()=>({onboarded:false,
   settings:{goalEGP:3000000,deadline:{y:2027,m:12},rate:13.4,goalInAED:false,salary:0,salaryDay:25,homeMin:0,homeMax:0,generalLimit:0,reminderDay:27,faceID:false,notifications:false,rateUpdated:null},
   anchor:{balance:0,date:Date.now()},incomes:[],planned:[],sheets:[],spends:[],notified:{},deviceId:uid()+uid(),passkey:null,pushSub:null});
-let D=load();try{norm()}catch(e){}
+let D=load();
+if(IS_OLD&&!D.onboarded&&location.hash!=='#dev'){location.replace(NEW_URL)}try{norm()}catch(e){}
 const U={tab:0,seg:0,sheet:null,draft:null,step:0,unlocked:false,simDate:null,linkOff:false,newName:'',newAmt:0,obBalance:0,scanning:false};
 function load(){try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);return Object.assign(defaults(),d,{settings:Object.assign(defaults().settings,d.settings)})}}catch(e){}return defaults()}
 function save(){norm();try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}try{PUSH.later()}catch(e){}}
@@ -599,11 +602,17 @@ function greeting(ok){const d=new Date(now()),h=d.getHours();
   const list=GREET[part][ok?'ok':'no'];
   return list[(d.getDate()+d.getMonth())%list.length]}   // ثابتة طول اليوم، وبتتغير من يوم ليوم
 
+// اللينك القديم: كارت بيشرح النقل للينك الجديد
+function moveCard(){if(!IS_OLD)return '';
+  return `<div class="card lime" style="margin-bottom:18px"><b style="font-weight:700;font-size:18px;display:block;margin-bottom:6px">تحويشة نقلت للينك جديد</b>
+  <div style="font-size:14px;line-height:1.7;margin-bottom:12px">١. خد نسخة احتياطية وانسخها<br>٢. افتح <b dir="ltr">tahwisha.pages.dev</b> في Safari وضيفه للهوم سكرين<br>٣. من أول شاشة اختار «عندك نسخة احتياطية؟» والزقها<br>٤. امسح الأيقونة القديمة</div>
+  <div class="row" style="gap:10px"><button class="chip" style="background:var(--ink);color:#fff;padding:10px 16px" onclick="U.sheet='backup';render()">النسخة الاحتياطية</button>
+  <a class="chip" style="background:#fff;padding:10px 16px;text-decoration:none;color:var(--ink)" href="${NEW_URL}" target="_blank" rel="noopener">افتح اللينك الجديد</a></div></div>`}
 function home(){const s=D.settings,sum=summary(),v=verdict(sum),inA=s.goalInAED,m=curM();
   const endV=inA?sum.r.end:sum.r.end*s.rate,goalV=inA?sum.goal:s.goalEGP,unit=inA?'د.إ':'ج.م';
   const sp=spent(m),L=generalFor(m),ratio=L>0?sp/L:0,col=ratio>=1?'var(--coral)':ratio>=.8?'#F5A524':'var(--purple)';
   const need=monthNeedingSheet();
-  return topbar()+
+  return topbar()+moveCard()+
   `<h1><span>${greeting(!(v&&!v.ok))}</span></h1>
   <div class="card blob">
     <div class="row"><span class="label">المتوقع آخر ${D.settings.deadline.y}</span>

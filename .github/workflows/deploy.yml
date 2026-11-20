@@ -47,7 +47,7 @@ jobs:
           if [ -z "$ID" ]; then echo "::error::Could not create KV namespace"; exit 1; fi
           echo "KV: $ID"
           sed -i "s/__KV_ID__/$ID/" wrangler.toml
-          npx wrangler deploy --var "SUBJECT:https://${{ github.repository_owner }}.github.io" | tee out.txt
+          npx wrangler deploy --var "SUBJECT:https://tahwisha.pages.dev" | tee out.txt
           URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' out.txt | head -1)
           if [ -z "$URL" ]; then echo "::error::Worker URL not found in wrangler output"; exit 1; fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
