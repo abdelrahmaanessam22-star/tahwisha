@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.check.outputs.has == 'yes'
         with:
-          node-version: 20
+          node-version: 22
       - id: deploy
         if: steps.check.outputs.has == 'yes'
         working-directory: worker
@@ -37,17 +37,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          set -e
+          set -eo pipefail
           npm install --no-audit --no-fund
           ID=$(npx wrangler kv namespace list 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const a=JSON.parse(s.slice(s.indexOf('[')));const n=a.find(x=>/TW$/.test(x.title));console.log(n?n.id:'')}catch(e){console.log('')}})")
           if [ -z "$ID" ]; then
-            npx wrangler kv namespace create TW | tee kv.txt
+            npx wrangler kv namespace create TW 2>&1 | tee kv.txt
             ID=$(grep -oE '[0-9a-f]{32}' kv.txt | head -1)
           fi
+          if [ -z "$ID" ]; then echo "::error::Could not create KV namespace"; exit 1; fi
           echo "KV: $ID"
           sed -i "s/__KV_ID__/$ID/" wrangler.toml
           npx wrangler deploy --var "SUBJECT:https://${{ github.repository_owner }}.github.io" | tee out.txt
           URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' out.txt | head -1)
+          if [ -z "$URL" ]; then echo "::error::Worker URL not found in wrangler output"; exit 1; fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
   pages:
