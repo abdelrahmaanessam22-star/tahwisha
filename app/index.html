@@ -520,6 +520,7 @@ const ANIM={sheet:false,kp:false};let lastSheet=null,lastKP=null;
 const AR='٠١٢٣٤٥٦٧٨٩';
 function arabize(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
   while(n=w.nextNode()){const t=n.nodeValue;if(!/[0-9]/.test(t))continue;
+    if(n.parentElement&&n.parentElement.closest('textarea,input,.raw'))continue; // النسخة الاحتياطية تفضل أرقام إنجليزي
     let v=t.replace(/[0-9]/g,d=>AR[d]);
     const p=n.parentElement;if(p&&p.closest('.num,.nf'))v=v.replace(/,/g,'٬').replace(/\./g,'٫');
     n.nodeValue=v}}
@@ -970,7 +971,12 @@ const A={
   async faceid(){U.scanning=true;U.lockMsg='';render();const ok=await FACE.verify();U.scanning=false;
     if(ok){U.unlocked=true;U.forceLock=false}else{U.lockMsg='ماعرفناش نتأكد منك. جرّب تاني.'}render()},
   async copyBackup(){const t=$('#bk');try{await navigator.clipboard.writeText(t.value);U.flash='اتنسخت ✓'}catch(e){t.select();U.flash='حدّد الكلام وانسخه'}render()},
-  restore(){try{const d=JSON.parse($('#restore').value.trim());if(!d||!d.settings)throw 0;
+  restore(){try{let raw=$('#restore').value
+        .replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/[۰-۹]/g,c=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(c))
+        .replace(/٫/g,'.').replace(/٬/g,',').replace(/[“”„‟″«»]/g,'"')
+        .replace(/[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069\ufeff\u00a0]/g,'');
+      raw=raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1);   // لو اتنسخ معاها كلام زيادة
+      const d=JSON.parse(raw);if(!d||!d.settings)throw 0;
       const keep={deviceId:D.deviceId,passkey:D.passkey,pushSub:D.pushSub,faceID:D.settings.faceID,notifications:D.settings.notifications};
       D=Object.assign(defaults(),d,{settings:Object.assign(defaults().settings,d.settings)});
       D.deviceId=keep.deviceId;D.passkey=keep.passkey;D.pushSub=keep.pushSub;D.settings.faceID=keep.faceID;D.settings.notifications=keep.notifications;D.onboarded=true;
