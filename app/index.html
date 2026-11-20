@@ -785,7 +785,10 @@ settings(){const s=D.settings;return head('الإعدادات')+`<div class="car
   <div class="frow"><span>فكّرني بمصاريف الشهر الجاي يوم</span>${stepper('reminderDay',1,28)}</div></div>
   <div class="card white" style="padding:6px 18px"><div class="frow"><button style="font-weight:500" onclick="A.open('correct')">صحّح رصيدي</button></div>
   <div class="frow"><button style="font-weight:500" onclick="U.sheet='backup';render()">نسخة احتياطية من بياناتي</button></div></div>`},
-backup(){return head('نسخة احتياطية')+`<div class="sub" style="margin-bottom:8px">انسخ الكلام ده واحفظه في Notes أو ابعته لنفسك. لو مسحت الأبلكيشن، تقدر ترجّع كل حاجة منه.</div>
+restore(){return head('رجّع بياناتك')+`<div class="sub" style="margin-bottom:8px">الزق النسخة الاحتياطية اللي حفظتها، وكل حاجة هترجع زي ما كانت.</div>
+  <textarea class="box" id="restore" placeholder="الزق النسخة هنا"></textarea>
+  <button class="primary" style="background:var(--purple)" onclick="A.restore()">رجّعها</button>
+  ${U.flash?`<div class="sub" style="margin-top:10px;color:var(--coral)">${U.flash}</div>`:''}`}, backup(){return head('نسخة احتياطية')+`<div class="sub" style="margin-bottom:8px">انسخ الكلام ده واحفظه في Notes أو ابعته لنفسك. لو مسحت الأبلكيشن، تقدر ترجّع كل حاجة منه.</div>
   <textarea class="box" readonly id="bk">${esc(JSON.stringify(D))}</textarea>
   <button class="primary" onclick="A.copyBackup()">انسخ</button>
   <div class="sec" style="margin-top:24px">رجّع بياناتي من نسخة</div>
@@ -879,7 +882,8 @@ function onboarding(){const s=D.settings,st=U.step,N=6;
   let body='';
   if(st===0)body=`<h1><span>يلا نوصل<br>لـ ${compact(s.goalEGP)}</span></h1><p>هنعمل خطة توصلك لهدفك قبل آخر ${MK.title(s.deadline)}. كل الأرقام هتدخلها بالدرهم وإحنا نحوّل.</p>
     <div class="card white" style="padding:6px 18px">${row('الهدف','goalEGP','ج.م')}<div class="frow"><span>سعر الدرهم النهارده</span><b style="font-weight:600"><span class="num">${trim(s.rate)}</span> ج.م</b></div></div>
-    <p data-live="goalaed"></p>`;
+    <p data-live="goalaed"></p>
+    <button class="card white" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:18px 20px;text-align:right" onclick="U.flash='';U.sheet='restore';render()"><span><b style="font-weight:600;display:block">عندك نسخة احتياطية؟</b><span class="sub">رجّع بياناتك ومتدخلش حاجة من الأول</span></span><span style="font-size:22px;color:var(--purple)">‹</span></button>`;
   if(st===1)body=`<h1><span>معاك كام<br>دلوقتي؟</span></h1><p>كل اللي محوّشه لحد النهارده.</p>`+amtCard('sky','obBal',()=>U.obBalance,v=>{U.obBalance=v});
   if(st===2)body=`<h1><span>مرتبك<br>كام؟</span></h1><p>اللي بينزل في حسابك فعلاً.</p>`+amtCard('lime','obSal',()=>D.settings.salary,v=>{D.settings.salary=v;save()})+
     `<div class="card white" style="padding:6px 18px"><div class="frow"><span>بينزل يوم</span>${stepper('salaryDay',1,31)}</div></div>`;
