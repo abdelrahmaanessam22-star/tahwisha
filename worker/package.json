@@ -1,0 +1,7 @@
+{
+  "name": "tahwisha-push",
+  "private": true,
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": { "wrangler": "4.165.0" }
+}

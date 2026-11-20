@@ -1,0 +1,4 @@
+node_modules/
+worker/kv.txt
+worker/out.txt
+.wrangler/

@@ -1,0 +1,11 @@
+name = "tahwisha-push"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[kv_namespaces]]
+binding = "TW"
+id = "__KV_ID__"
