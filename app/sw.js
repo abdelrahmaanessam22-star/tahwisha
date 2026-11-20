@@ -1,5 +1,5 @@
 // تحويشة service worker: offline + notifications
-const CACHE = 'tahwisha-v1';
+const CACHE = 'tahwisha-v2';
 const SHELL = [
   './', './index.html', './config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
