@@ -1,8 +1,8 @@
 // تحويشة service worker: offline + notifications
-const CACHE = 'tahwisha-v2';
+const CACHE = 'tahwisha-v3';
 const SHELL = [
   './', './index.html', './config.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
+  './icons/coin-192.png', './icons/coin-512.png', './icons/coin-180.png',
   './fonts/thmanyahsans-Light.woff2', './fonts/thmanyahsans-Regular.woff2',
   './fonts/thmanyahsans-Medium.woff2', './fonts/thmanyahsans-Bold.woff2', './fonts/thmanyahsans-Black.woff2'
 ];
@@ -45,8 +45,8 @@ self.addEventListener('push', e => {
   e.waitUntil(self.registration.showNotification(d.title || 'تحويشة', {
     body: d.body || '',
     tag: d.tag || undefined,
-    icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
+    icon: 'icons/coin-192.png',
+    badge: 'icons/coin-192.png',
     lang: 'ar',
     dir: 'rtl',
     data: { url: d.url || './' }
