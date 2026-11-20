@@ -794,7 +794,13 @@ settings(){const s=D.settings;return head('الإعدادات')+`<div class="car
   ${U.flash?`<div class="frow"><span class="sub" style="color:var(--coral)">${U.flash}</span></div>`:''}
   <div class="frow"><span>فكّرني بمصاريف الشهر الجاي يوم</span>${stepper('reminderDay',1,28)}</div></div>
   <div class="card white" style="padding:6px 18px"><div class="frow"><button style="font-weight:500" onclick="A.open('correct')">صحّح رصيدي</button></div>
-  <div class="frow"><button style="font-weight:500" onclick="U.sheet='backup';render()">نسخة احتياطية من بياناتي</button></div></div>`},
+  <div class="frow"><button style="font-weight:500" onclick="U.sheet='backup';render()">نسخة احتياطية من بياناتي</button></div></div>
+  <div class="card white" style="padding:6px 18px"><button class="danger" onclick="U.flash='';U.sheet='wipe';render()">امسح كل حاجة وابدأ من الأول</button></div>`},
+wipe(){return head('تمسح كل حاجة؟')+`<div class="sub" style="margin-bottom:16px;font-size:15px;line-height:1.7">الرصيد والمرتب والخطة والمصاريف كلها هتتمسح، والأبلكيشن هيرجع كأنك فاتحه لأول مرة. مفيش رجوع بعد كده غير لو عندك نسخة احتياطية.</div>
+  <button class="primary" style="background:#D93A2B" onclick="A.wipe()" ${U.scanning?'disabled':''}>${U.scanning?'بنتأكد منك…':'أيوه، امسح'}</button>
+  <button class="primary" style="background:var(--bg);color:var(--ink);margin-top:10px" onclick="A.close()">لأ، خلّيها</button>
+  <button class="small-btn" style="display:block;margin:14px auto 0;color:var(--muted)" onclick="U.sheet='backup';render()">خد نسخة احتياطية الأول</button>
+  ${U.flash?`<div class="sub" style="margin-top:12px;color:var(--coral);text-align:center">${U.flash}</div>`:''}`},
 restore(){return head('رجّع بياناتك')+`<div class="sub" style="margin-bottom:8px">الزق النسخة الاحتياطية اللي حفظتها، وكل حاجة هترجع زي ما كانت.</div>
   <textarea class="box" id="restore" placeholder="الزق النسخة هنا"></textarea>
   <button class="primary" style="background:var(--purple)" onclick="A.restore()">رجّعها</button>
@@ -990,6 +996,19 @@ const A={
       D=Object.assign(defaults(),d,{settings:Object.assign(defaults().settings,d.settings)});
       D.deviceId=keep.deviceId;D.passkey=keep.passkey;D.pushSub=keep.pushSub;D.settings.faceID=keep.faceID;D.settings.notifications=keep.notifications;D.onboarded=true;
       save();U.flash='';U.sheet=null;U.unlocked=true;render()}catch(e){U.flash='النسخة دي مش سليمة';render()}},
+  // المسح لازم بصمة الوش الأول
+  async wipe(){if(U.scanning)return;U.flash='';U.scanning=true;render();
+    let ok=false;
+    if(!FACE.ok())ok=false;
+    else if(D.passkey)ok=await FACE.verify();
+    else{const keepPk=D.passkey;ok=await FACE.register();if(!ok)D.passkey=keepPk}
+    U.scanning=false;
+    if(!ok){U.flash='لازم نتأكد ببصمة الوش الأول. مامسحناش حاجة.';render();return}
+    if(D.settings.notifications)PUSH.unsync();
+    const keep={deviceId:D.deviceId,passkey:D.passkey};
+    D=Object.assign(defaults(),keep);save();
+    Object.assign(U,{tab:0,seg:0,sheet:null,draft:null,step:0,obBalance:0,flash:'',unlocked:true,forceLock:false});KP.id=null;
+    render()},
   async toggleFace(){if(D.settings.faceID){D.settings.faceID=false;save();render();return}
     const ok=await FACE.register();if(ok){D.settings.faceID=true;U.unlocked=true;save()}else U.flash='بصمة الوش مش متاحة على الجهاز ده أو اتلغت.';render()},
   async toggleNotif(){if(D.settings.notifications){D.settings.notifications=false;save();PUSH.unsync();render();return}
