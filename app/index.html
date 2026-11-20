@@ -358,7 +358,7 @@ const NEW_URL='https://tahwisha.pages.dev/';
 const IS_OLD=/github\.io$/.test(location.hostname);
 const KEY=IS_APP?'tahwisha.v1':'tahwisha.proto.v1';
 const defaults=()=>({onboarded:false,
-  settings:{goalEGP:3000000,deadline:{y:2027,m:12},rate:13.4,goalInAED:false,salary:0,salaryDay:25,homeMin:0,homeMax:0,generalLimit:0,reminderDay:27,faceID:false,notifications:false,rateUpdated:null},
+  settings:{goal:0,goalCur:'AED',deadline:{y:2027,m:12},rate:13.4,goalInAED:true,salary:0,salaryDay:25,homeMin:0,homeMax:0,generalLimit:0,reminderDay:27,faceID:false,notifications:false,rateUpdated:null},
   anchor:{balance:0,date:Date.now()},incomes:[],planned:[],sheets:[],spends:[],notified:{},deviceId:uid()+uid(),passkey:null,pushSub:null});
 let D=load();
 if(IS_OLD&&!D.onboarded&&location.hash!=='#dev'){location.replace(NEW_URL)}try{norm()}catch(e){}
@@ -375,7 +375,11 @@ function norm(){const n=v=>{const x=+v;return isFinite(x)?x:0};const cur=MK.of(n
   D.incomes=(D.incomes||[]).filter(Boolean).map(i=>({...i,amount:n(i.amount),day:Math.max(1,n(i.day)||1),month:normMonth(i.month)||cur}));
   D.sheets=(D.sheets||[]).filter(sh=>sh&&normMonth(sh.month)).map(sh=>({...sh,month:normMonth(sh.month),lines:(sh.lines||[]).map(l=>({...l,amount:n(l.amount)})),skipped:sh.skipped||[]}));
   D.spends=(D.spends||[]).map(x=>({...x,amount:n(x.amount),date:n(x.date)}));
-  const st=D.settings;['goalEGP','rate','salary','salaryDay','homeMin','homeMax','generalLimit','reminderDay'].forEach(k=>st[k]=n(st[k]));
+  const st=D.settings;
+  // الهدف بقى مبلغ + عملته (البيانات القديمة كانت بالجنيه)
+  if(st.goal==null){st.goal=st.goalEGP!=null?st.goalEGP:0;st.goalCur=st.goalEGP!=null?'EGP':'AED'}
+  if(st.goalCur!=='EGP')st.goalCur='AED';
+  ['goal','rate','salary','salaryDay','homeMin','homeMax','generalLimit','reminderDay'].forEach(k=>st[k]=n(st[k]));
   st.deadline=normMonth(st.deadline)||{y:2027,m:12};
   // بداية الاستخدام الفعلي: اللي قبلها مش داخل في الحسبة خالص
   st.startMonth=normMonth(st.startMonth)||{y:2026,m:12}}
@@ -406,7 +410,8 @@ const homeMid=()=>(D.settings.homeMin+D.settings.homeMax)/2;
 /* البيت والمصاريف العامة: أساسيين كل شهر، وتقدر تعدّلهم لشهر معيّن */
 const homeFor=(m,home=homeMid())=>{const sh=sheetOf(m);return sh&&sh.home!=null?sh.home:home};
 const generalFor=m=>{const sh=sheetOf(m);return sh&&sh.general!=null?sh.general:D.settings.generalLimit};
-const goalAED=()=>D.settings.rate>0?D.settings.goalEGP/D.settings.rate:0;
+const goalAED=()=>{const s=D.settings;return s.goalCur==='AED'?s.goal:(s.rate>0?s.goal/s.rate:0)};
+const goalEGP=()=>{const s=D.settings;return s.goalCur==='EGP'?s.goal:s.goal*s.rate};
 
 /* ملخص شهر: محسوب من نفس حركات الخطة بالظبط،
    فلو رصيدك اتسجّل في نص الشهر، الشهر ده بيتحسب من يومها بس */
@@ -609,7 +614,7 @@ function moveCard(){if(!IS_OLD)return '';
   <div class="row" style="gap:10px"><button class="chip" style="background:var(--ink);color:#fff;padding:10px 16px" onclick="U.sheet='backup';render()">النسخة الاحتياطية</button>
   <a class="chip" style="background:#fff;padding:10px 16px;text-decoration:none;color:var(--ink)" href="${NEW_URL}" target="_blank" rel="noopener">افتح اللينك الجديد</a></div></div>`}
 function home(){const s=D.settings,sum=summary(),v=verdict(sum),inA=s.goalInAED,m=curM();
-  const endV=inA?sum.r.end:sum.r.end*s.rate,goalV=inA?sum.goal:s.goalEGP,unit=inA?'د.إ':'ج.م';
+  const endV=inA?sum.r.end:sum.r.end*s.rate,goalV=inA?sum.goal:goalEGP(),unit=inA?'د.إ':'ج.م';
   const sp=spent(m),L=generalFor(m),ratio=L>0?sp/L:0,col=ratio>=1?'var(--coral)':ratio>=.8?'#F5A524':'var(--purple)';
   const need=monthNeedingSheet();
   return topbar()+moveCard()+
@@ -783,7 +788,7 @@ buy(){return head('عايز أشتري')+`<div class="card white" style="padding
   <div class="frow"><span>مصاريف التقسيط (لو فيه)</span><span class="field">${nfield('fee',()=>U.draft.fee,v=>{U.draft.fee=v})}<span class="cur">د.إ</span></span></div>
   </div><div data-live="buy"></div>`},
 settings(){const s=D.settings;return head('الإعدادات')+`<div class="card white" style="padding:6px 18px">
-  <div class="frow"><span>الهدف</span><span class="field">${nfield('goalS',()=>D.settings.goalEGP,v=>{D.settings.goalEGP=v;save()})}<span class="cur">ج.م</span></span></div>
+  <div class="frow"><span>الهدف</span><span class="field">${nfield('goalS',()=>Math.round(D.settings.goalInAED?goalAED():goalEGP()),v=>{D.settings.goal=v;D.settings.goalCur=D.settings.goalInAED?'AED':'EGP';save()})}<span class="cur">${s.goalInAED?'د.إ':'ج.م'}</span></span></div>
   <div class="frow"><span>قبل آخر</span><select onchange="D.settings.deadline=fromId(+this.value);save()">${monthOptions(s.deadline)}</select></div>
   <div class="frow"><span>اعرض الهدف بـ</span><div class="seg" style="margin:0;background:var(--bg);width:150px"><button class="${s.goalInAED?'':'on'}" onclick="A.setv('goalInAED',false)">الجنيه</button><button class="${s.goalInAED?'on':''}" onclick="A.setv('goalInAED',true)">الدرهم</button></div></div>
   <div class="frow"><span>الدرهم = <span class="num">${trim(s.rate)}</span> ج.م</span><span class="sub">${s.rateUpdated?'اتحدّث '+new Date(s.rateUpdated).toLocaleDateString('ar-EG',{day:'numeric',month:'long'}):'بيتحدّث أونلاين'}</span></div></div>
@@ -896,8 +901,8 @@ function onboarding(){const s=D.settings,st=U.step,N=6;
   const amtCard=(cls,id,get,set)=>`<div class="card ${cls}" style="padding:28px 10px">${nfield(id,get,set,{big:true})}<div class="center sub" style="color:var(--ink)">د.إ</div></div>`;
   const row=(t,k,u='د.إ')=>`<div class="frow"><span>${t}</span><span class="field">${nfield('ob_'+k,()=>D.settings[k],v=>{D.settings[k]=v;save()})}<span class="cur">${u}</span></span></div>`;
   let body='';
-  if(st===0)body=`<h1><span>يلا نوصل<br>لـ ${compact(s.goalEGP)}</span></h1><p>هنعمل خطة توصلك لهدفك قبل آخر ${MK.title(s.deadline)}. كل الأرقام هتدخلها بالدرهم وإحنا نحوّل.</p>
-    <div class="card white" style="padding:6px 18px">${row('الهدف','goalEGP','ج.م')}<div class="frow"><span>سعر الدرهم النهارده</span><b style="font-weight:600"><span class="num">${trim(s.rate)}</span> ج.م</b></div></div>
+  if(st===0)body=`<h1><span data-live="obgoal"></span></h1><p>اكتب المبلغ اللي عايز توصله قبل آخر ${MK.title(s.deadline)}، وإحنا نعملك خطة توصلك له. كل الأرقام هتدخلها بالدرهم.</p>
+    <div class="card white" style="padding:6px 18px"><div class="frow"><span>هدفك</span><span class="field">${nfield('obGoal',()=>D.settings.goal,v=>{D.settings.goal=v;D.settings.goalCur='AED';save()})}<span class="cur">د.إ</span></span></div><div class="frow"><span>سعر الدرهم النهارده</span><b style="font-weight:600"><span class="num">${trim(s.rate)}</span> ج.م</b></div></div>
     <p data-live="goalaed"></p>
     <button class="card white" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:18px 20px;text-align:right" onclick="U.flash='';U.sheet='restore';render()"><span><b style="font-weight:600;display:block">عندك نسخة احتياطية؟</b><span class="sub">رجّع بياناتك ومتدخلش حاجة من الأول</span></span><span style="font-size:22px;color:var(--purple)">‹</span></button>`;
   if(st===1)body=`<h1><span>معاك كام<br>دلوقتي؟</span></h1><p>كل اللي محوّشه لحد النهارده.</p>`+amtCard('sky','obBal',()=>U.obBalance,v=>{U.obBalance=v});
@@ -917,8 +922,9 @@ function onboarding(){const s=D.settings,st=U.step,N=6;
   let h=`<div class="scroll ob">${steps}${body}</div><div class="obnav" data-live="obnext"></div>`;
   if(U.sheet)h+=`<div class="overlay ${ANIM.sheet?'anim':''}" onclick="if(event.target===this)A.close()"><div class="sheet"><div class="grab"></div>${SHEETS[U.sheet]()}</div></div>`;
   return h}
-LIVE.goalaed=()=>`يعني الهدف ≈ ${aed(goalAED())} بسعر النهارده.`;
-LIVE.obnext=()=>{const s=D.settings,ok=[s.goalEGP>0&&s.rate>0,true,s.salary>0,s.homeMax>=s.homeMin,true,true][U.step];
+LIVE.goalaed=()=>D.settings.goal>0?`يعني ≈ ${compact(goalEGP())} ج.م بسعر النهارده.`:'';
+LIVE.obgoal=()=>D.settings.goal>0?`يلا نوصل<br>لـ ${compact(D.settings.goal)} د.إ`:'يلا نحدد<br>هدفك';
+LIVE.obnext=()=>{const s=D.settings,ok=[s.goal>0&&s.rate>0,true,s.salary>0,s.homeMax>=s.homeMin,true,true][U.step];
   return `<button class="primary" ${ok?'':'disabled'} onclick="A.next()">${U.step===5?'يلا بينا':'التالي'}</button>`};
 
 /* ============ actions ============ */
@@ -1125,7 +1131,7 @@ const T={
   relock(){U.unlocked=false;U.forceLock=true;U.sheet=null;render()},
   reset(){try{localStorage.removeItem(KEY)}catch(e){}D=defaults();Object.assign(U,{tab:0,seg:0,sheet:null,draft:null,step:0,unlocked:false,obBalance:0});render()},
   demo(){const c=curM();D=defaults();
-    Object.assign(D.settings,{salary:18000,salaryDay:25,homeMin:4000,homeMax:6000,generalLimit:2000});
+    Object.assign(D.settings,{goal:3000000,goalCur:'EGP',goalInAED:false,salary:18000,salaryDay:25,homeMin:4000,homeMax:6000,generalLimit:2000});
     D.anchor={balance:120000,date:now()};D.onboarded=true;
     D.incomes=[{id:uid(),name:'جمعية',amount:10000,month:MK.add(c,4),day:5},{id:uid(),name:'بونص',amount:15000,month:{y:2027,m:3},day:25}];
     D.planned=[{id:uid(),name:'إيجار',amount:9000,kind:'recurring',start:MK.add(c,1),day:1,interval:2,count:4,endMonth:null},
